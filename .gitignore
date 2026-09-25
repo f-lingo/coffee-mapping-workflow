@@ -1,0 +1,7 @@
+# Local ground-truth assets, settings, and corrections
+gee_local_config.py
+
+# Generated Python files and data
+__pycache__/
+*.py[cod]
+data/
