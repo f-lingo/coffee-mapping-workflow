@@ -32,6 +32,11 @@ WHAT THIS WRITES, AND WHO READS IT
     splits/S_*_splits.json          scripts 6, 7 and 8 verify against this
     P_*_polygon_predictions.csv     script 7 reads this and fits nothing
     T*_*.csv                        the tables behind figure F1
+    T6c_*_pixels_by_cluster         pooled and loro_all fits, pixel level,
+                                    per cluster on the held-out share, for
+                                    tables T1 and T1a in script 9
+    T6d_*_pooled_pixel_confusion    pooled pixel confusion counts, every
+                                    seed summed, for figure F18
 
 Run time about 15 minutes at 130 forest fits.
 """
@@ -150,6 +155,14 @@ banner('POOLED, LOCAL AND LORO_OUT')
 print('  Training sets nest exactly. pooled = local union loro_out.')
 
 pooled_rows, nested_rows, skipped = [], [], []
+# The pooled and loro_all fits scored cluster by cluster at PIXEL level, so
+# script 9 can set them beside local and loro_out on the same test pixels.
+# T6 already holds the polygon level. Adds no fit, changes no other number.
+DESIGN_PX_BY_CLUSTER = []
+# Pooled pixel confusion summed over EVERY seed, for script 9's aggregated
+# confusion figure. The printed matrix above uses one seed only.
+from sklearn.metrics import confusion_matrix as _cm
+POOLED_PX_CM = np.zeros((cc.K, cc.K), dtype=np.int64)
 p_true, p_pred = [], []
 POOLED_POLYS, LOCAL_POLYS, OUT_POLYS, ALL_POLYS = {}, {}, {}, {}
 
@@ -159,6 +172,16 @@ for seed in SEEDS:
                                {CLUSTER_COL: -1})
     pooled_rows.append(rec)
     POOLED_POLYS[seed] = polys
+    te_px_ids = D.capped(te_ids, seed, TEST_PIXEL_CAP)[ID_COL].to_numpy()
+    for c in D.clusters:
+        in_c = np.isin(te_px_ids, list(D.cluster_ids[c] & te_ids))
+        if in_c.any():
+            DESIGN_PX_BY_CLUSTER.append({
+                'seed': seed, CLUSTER_COL: c,
+                'region': D.region_of_cluster[c], 'design': 'pooled',
+                'n_test_px': int(in_c.sum()), **cc.metrics(yt[in_c], yp[in_c])})
+    del te_px_ids
+    POOLED_PX_CM += _cm(yt, yp, labels=cc.ALL_CLASSES)
     if CM_SEEDS == 'all' or seed == SEEDS[0]:
         p_true.extend(yt)
         p_pred.extend(yp)
@@ -224,6 +247,16 @@ if RUN_LORO_FULL:
                 sub = lp[lp[ID_COL].isin(lte)]
                 if len(sub) == len(lte):
                     ALL_POLYS[(seed, c)] = sub.copy()
+                    # The same fit at PIXEL level on the held-out share,
+                    # so script 9 can pair loro_all with pooled and local.
+                    px_ids = D.capped(te_ids, seed,
+                                      TEST_PIXEL_CAP)[ID_COL].to_numpy()
+                    in_l = np.isin(px_ids, list(lte))
+                    DESIGN_PX_BY_CLUSTER.append({
+                        'seed': seed, CLUSTER_COL: c, 'region': region,
+                        'design': 'loro_all', 'n_test_px': int(in_l.sum()),
+                        **cc.metrics(yt[in_l], yp[in_l])})
+                    del px_ids
             if CM_SEEDS == 'all' or seed == SEEDS[0]:
                 l_true.extend(yt)
                 l_pred.extend(yp)
@@ -383,6 +416,12 @@ if len(LORO):
     print(lt.round(3).to_string())
 
 cc.save_table(ALL, TAG, f'T5_{TAG}_evaluation.csv')
+cc.save_table(pd.DataFrame(POOLED_PX_CM, index=cc.ALL_CLASSES,
+                           columns=cc.ALL_CLASSES).rename_axis('true'), TAG,
+              f'T6d_{TAG}_pooled_pixel_confusion.csv', index=True)
+if DESIGN_PX_BY_CLUSTER:
+    cc.save_table(pd.DataFrame(DESIGN_PX_BY_CLUSTER), TAG,
+                  f'T6c_{TAG}_pixels_by_cluster.csv')
 cc.save_table(cov, TAG, f'T7_{TAG}_coverage.csv', index=True)
 if SAVE_PREDICTIONS and PRED_ROWS:
     p = cc.save_table(pd.concat(PRED_ROWS, ignore_index=True), TAG,

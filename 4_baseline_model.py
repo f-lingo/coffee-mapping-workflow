@@ -52,7 +52,7 @@ TAG = 'baseline'
 N_SEEDS = 10
 MIN_REGION_TRAIN = 30
 MIN_REGION_TEST = 5
-FIT_FINAL = False        # True to pickle a model fitted on every polygon
+FIT_FINAL = True        # True to pickle a model fitted on every polygon
 CM_SEED = 0              # index into SEEDS, for the printed confusion matrix
 
 BASE_SEEDS = SEEDS[:N_SEEDS]
@@ -118,9 +118,9 @@ print(summary.to_string())
 sd = (POOLED.assign(model=POOLED['level'] + ' ' + POOLED['vote'])
       .groupby('model')[['oa', 'macro_f1']].std(ddof=1)
       .reindex(['pixel -', 'polygon hard', 'polygon soft']).round(4))
-print('\n  Seed-to-seed SD for the pooled baseline models:')
-print('  These values describe repeated splits of the pooled baseline.')
-print('  Script 5 reports regional and seed variability for its own designs.')
+print('\n  Seed to seed SD. Small, and that is the point. The variation that')
+print('  matters is between REGIONS, which script 5 reports at about 0.043')
+print('  for polygon macro F1 against 0.005 here.')
 print(sd.to_string())
 
 banner('WHAT VOTING TO THE POLYGON CHANGES, PER CLASS')

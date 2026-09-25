@@ -135,7 +135,7 @@ MIN_PIXELS_PER_POLYGON = 10
 SEEDS = [7, 12, 35, 53, 56, 64, 67, 75, 84, 100]
 FINAL_PIXEL_CAP = 50
 TEST_PIXEL_CAP = None
-FINAL_TREES = 500
+FINAL_TREES = 1000
 RF_MAX_DEPTH = 30
 FINAL_WEIGHT = 'balanced'
 FINAL_TEST_FRAC = 0.25
@@ -147,6 +147,7 @@ RF_N_JOBS = -1
 TAG_DESIGNS = 'annual15_nested'
 TAG_DISTANCE = 'annual15_distance'
 TAG_NSC = 'annual15_nsc'
+TAG_IMPORTANCE = 'annual15_importance'
 
 
 def banner(title, char='='):

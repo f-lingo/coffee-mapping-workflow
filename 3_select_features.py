@@ -54,7 +54,7 @@ from coffee_common import ID_COL, CLUSTER_COL, CLASS_NAMES, banner
 TAG = 'feature_selection'
 CORR_THRESHOLD = 0.65
 N_SELECT = 15                 # the count in use. The curve tests whether it holds
-CURVE_K = [3, 5, 8, 10, 12, 15, 20, 25, 30]
+CURVE_K = [3, 5, 8, 10, 12, 15, 20, 25, 30] 
 SEED = 93                     # the seed the original selection used
 TREES = 300                   # importance is stable well below the final 500
 PIXEL_CAP = 50

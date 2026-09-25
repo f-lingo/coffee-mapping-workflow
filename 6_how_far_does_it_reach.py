@@ -32,6 +32,16 @@ WHAT THIS WRITES
     T8_*_sweep.csv                         the curve, figure F2 and F3
     P_*_predictions_by_buffer.csv          script 7 cuts this by distance
     T9_*_near_pairs.csv, T9b_*_marginal.csv, T10_*_grouped.csv
+    T8c_*_pixel_vs_polygon.csv             the distance effect at pixel and
+                                           polygon level, side by side
+
+PIXEL AND POLYGON
+Every fit is scored at both levels from the same predictions. Polygon
+columns start poly_, pixel columns start px_. Pixel scores are NOT what the
+distance claim rests on. That rests on the buffer arm against the random arm.
+They show how the loss is spread inside polygons. A polygon drop much larger
+than the pixel drop means a modest rise in wrong pixels is tipping the vote.
+Similar drops mean the model is worse more broadly.
 
 Run time about 45 minutes.
 """
@@ -137,8 +147,11 @@ def score(tr_ids, te_ids, seed, tag=None):
     yp, _ = cc.predict_batched(rf, sc, te, cc.FEATURE_COLUMNS)
     pid, pyt, pyp = cc.polygon_labels(te, yp)
     rec = {f'poly_{a}': b for a, b in cc.metrics(pyt, pyp).items()}
+    # Pixel level from the same predictions, no extra fit.
+    rec.update({f'px_{a}': b for a, b in
+                cc.metrics(te['class'].values, yp).items()})
     rec.update({'n_train_poly': len(tr_ids), 'n_test_poly': len(te_ids),
-                'n_train_px': len(tr)})
+                'n_train_px': len(tr), 'n_test_px': len(te)})
     if SAVE_PREDICTIONS:
         p = pd.DataFrame({ID_COL: pid, 'y_true': pyt, 'y_pred': pyp})
         p['seed'] = seed
@@ -269,6 +282,40 @@ del marg
 print('\n' + MARGINAL.to_string(index=False))
 print('\n  Bands that removed fewer than 1 polygon on average are blank.')
 
+# =============================================================================
+# PIXEL AGAINST POLYGON. Where inside the polygons the distance loss lands.
+# =============================================================================
+banner('PIXEL AGAINST POLYGON, THE DISTANCE EFFECT AT EACH LEVEL')
+print('  Same fits, same test polygons, scored two ways. distance effect is')
+print('  random minus buffer, the part of the drop caused by distance.')
+print('  polygon minus pixel above zero means voting AMPLIFIES the distance')
+print('  loss. Below zero means voting absorbs some of it.')
+PVP = []
+for col in SHOW:
+    pcol = 'px_' + col[len('poly_'):]
+    if col not in SWEEP.columns or pcol not in SWEEP.columns:
+        continue
+    t = {}
+    for lv, c in (('pixel', pcol), ('polygon', col)):
+        pv = SWEEP.pivot_table(index='buffer_km', columns='arm', values=c)
+        t[f'{lv} buffer'] = pv['buffer']
+        if 'random' in pv.columns:
+            t[f'{lv} random'] = pv['random']
+            t[f'{lv} distance effect'] = pv['random'] - pv['buffer']
+    t = pd.DataFrame(t)
+    if {'pixel distance effect', 'polygon distance effect'} <= set(t.columns):
+        t['polygon minus pixel'] = (t['polygon distance effect']
+                                    - t['pixel distance effect'])
+    print(f'\n  {NICE[col]}')
+    print(t.round(4).to_string())
+    PVP.append(t.reset_index().assign(metric=NICE[col]))
+PIXEL_VS_POLY = (pd.concat(PVP, ignore_index=True) if PVP
+                 else pd.DataFrame())
+del PVP
+print('\n  Pixel scores weight large polygons heavily, because they hold more')
+print('  pixels. Forest polygons are the largest. Read pixel F1 per class,')
+print('  and read pixel overall accuracy with that in mind.')
+
 banner('HOW MANY COFFEE POLYGONS EACH REGION ACTUALLY TESTS')
 print('  poly_sc_nsc_f1 is computed on these polygons alone. A region with a')
 print('  handful cannot support a per-region claim, however clean it looks.')
@@ -284,6 +331,8 @@ if 'poly_sc_nsc_n' in SWEEP.columns:
 cc.save_table(SWEEP, TAG, f'T8_{TAG}_sweep.csv')
 cc.save_table(rm, TAG, f'T8b_{TAG}_removal.csv', index=True)
 cc.save_table(MARGINAL, TAG, f'T9b_{TAG}_marginal.csv')
+if len(PIXEL_VS_POLY):
+    cc.save_table(PIXEL_VS_POLY, TAG, f'T8c_{TAG}_pixel_vs_polygon.csv')
 
 
 # =============================================================================
@@ -353,6 +402,12 @@ if DEDUP_M is not None:
         print(pd.concat({'ungrouped d=0': ung[narrow], 'grouped': gr[narrow],
                          'difference': gr[narrow] - ung[narrow]},
                         axis=1).round(4).to_string())
+        PX_SHOW = ['px_' + c[len('poly_'):] for c in SHOW
+                   if 'px_' + c[len('poly_'):] in GROUPED.columns]
+        ung = ung.join(SWEEP[(SWEEP['arm'] == 'buffer') &
+                             (SWEEP['buffer_km'] == 0)]
+                       .groupby('region')[PX_SHOW].mean())
+        gr = gr.join(GROUPED.groupby('region')[PX_SHOW].mean())
         o = pd.DataFrame({'ungrouped d=0': ung.mean(), 'grouped': gr.mean()})
         o['difference'] = o['grouped'] - o['ungrouped d=0']
         print('\n  Overall')
