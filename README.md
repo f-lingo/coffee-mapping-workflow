@@ -1,69 +1,136 @@
-# Coffee mapping workflow
+# Shade coffee agroforestry classification, Colombia
 
-Python workflow for extracting annual and quarterly Sentinel-2 features from reference polygons in Google Earth Engine and preparing an annual feature table for modeling. This repository contains the extraction and annual preparation stages; model training and research figures will be added separately.
+Spatially honest accuracy assessment for Sentinel-2 classification of shade
+coffee agroforestry across four Colombian departments, from 923 field
+reference polygons.
 
-## Files
+The headline result is not the map. It is that accuracy usually reported for
+this kind of map is about 0.10 too high, that accuracy depends on how far you
+are from field data, and that the two coffee boundaries fail for two
+different reasons needing two different fixes.
 
-- `1_gee.py`: builds spectral composites, indices, textures, topography, and canopy-height features; samples reference polygons; streams results to Parquet.
-- `2_clean_define_annual.py`: reads annual/static columns, optionally applies local preparation, and writes a separate annual Parquet.
-- `gee_config.example.py`: configuration template to copy and customize.
-- `requirements.txt`: Python dependencies. Versions are not pinned to a validated environment yet.
+## Pipeline
+
+Run in order. Scripts 6, 7 and 8 refuse to continue unless they reproduce
+script 5's splits exactly, so the chain cannot silently drift apart.
+
+| Script | What it answers | Fits | Time |
+|---|---|---|---|
+| `1_gee.py` | Build the pixel table from Earth Engine | — | hours |
+| `2_clean_define_annual.py` | Drop seasonal columns, keep annual | — | seconds |
+| `3_select_features.py` | **How the 15 features were chosen.** Correlation filter, importance under leave-one-cluster-out, and a performance curve against feature count. | ~40 | ~15 min |
+| `4_baseline_model.py` | **The model itself.** Pixel against polygon, hard against soft vote, per-region classifiers, confusion matrices. | 30 | ~10 min |
+| `5_which_polygons_help.py` | **Q1.** Does it matter where reference polygons come from? | 130 | ~15 min |
+| `6_how_far_does_it_reach.py` | **Q2.** How accurate is it really, and how far does a training polygon reach? | 480 | ~45 min |
+| `7_which_boundary_fails.py` | **Q3a.** Which boundary fails, in which direction, does distance matter? | 0 | seconds |
+| `8_is_sun_coffee_fixable.py` | **Q3b.** Is sun coffee fixable without merging the classes? | 90 | ~15 min |
+| `9_figures.py` | Seven figures and draft captions | 0 | seconds |
+
+Scripts 7 and 9 fit nothing, so they are cheap to rerun while drafting.
+
+Script 4 is the map. Everything after it is a diagnostic explaining why that
+map has the weaknesses it has.
+
+**One warning about script 4.** Its polygon accuracy is the optimistic one.
+It uses an ordinary stratified holdout, so training polygons sit a median of
+208 m from test polygons and the score carries about 0.10 of spatial
+inflation. Quote script 4 for the confusion structure, the pixel against
+polygon comparison and the per-region spread. Quote script 6 for accuracy.
+The script prints this warning itself so it cannot be missed.
+
+`coffee_common.py` holds the feature list, the class codes, the region names,
+the pixel sampler, the model helpers and the split machinery. It exists
+because separate copies of those constants drifted twice, and both times
+silently: one script still held an older experiment while later scripts read
+its output, and the region names disagreed so one script labelled a cluster
+Magdalena while the next called it Santander. Neither raised an error.
 
 ## Setup
 
-Install the dependencies in your Python environment:
-
 ```bash
-python -m pip install -r requirements.txt
-cp gee_config.example.py gee_local_config.py
+pip install -r requirements.txt
+cp gee_config.example.py gee_local_config.py   # then edit it
 ```
 
-Edit `gee_local_config.py` to set your Earth Engine project, polygon assets, output paths and filenames, class names, and analysis CRS. Both scripts require this file. It is excluded from Git so personal asset references and data corrections stay local.
+`gee_local_config.py` holds only settings that depend on where your files
+are. Everything that is method, the seeds, tree counts, pixel caps and buffer
+ladders, lives in the script that uses it, because those belong with the
+experiment rather than with your machine.
 
-The example uses `EPSG:3116` for the Colombia analysis grid. Choose an appropriate projected CRS for a different study area. Incoming longitude/latitude coordinates are interpreted as `EPSG:4326` before transformation to the configured CRS for easting/northing.
+## The three answers
 
-Authenticate with Earth Engine if needed:
+**Q1. Only nearby polygons help.** 173 local training polygons beat 692
+distant ones. Swapping 173 nearby for 174 distant at a fixed total costs
+0.124 macro F1 and loses in 37 of 40 tests. Adding 174 *more* distant
+polygons on top changed nothing, +0.004 with a 95% CI of −0.011 to +0.019.
 
-```bash
-python -c "import ee; ee.Authenticate()"
-```
+**Q2. The usual accuracy number is about 0.10 too high.** Shade against sun
+coffee scores 0.709 polygon F1, not the 0.805 a random holdout reports. Two
+independent methods agree on 0.709: a buffered training sweep and a grouped
+split that keeps near-duplicate polygons on one side. The gap comes from
+reference polygons sitting in tight clumps, median nearest neighbour 208 m.
 
-Your account needs access to the configured Earth Engine project, polygon assets, and canopy-height collection referenced in Script 1.
+**Q3. Two failures, two causes.**
 
-## Reference polygons
+- *Shade coffee against forest is a distance problem.* Shade coffee called
+  forest rises from 10.7% to 26.4% as training data is pushed away, and never
+  plateaus out to 50 km. Closer reference data fixes it. The direction of the
+  error flips between regions, so no single global correction will.
+- *Sun coffee against bare ground is a size problem.* Sun coffee plots have a
+  median area of 0.30 ha, so at 10 m only about 40% of their pixels are
+  unmixed. The pair is separable at 0.82 when it is the only decision being
+  made, and falls to 0.55 inside the five-class problem. Distance does not
+  affect it. More reference data barely helps. Finer pixels would.
 
-Each configured source needs polygon geometry and numeric `class` labels matching `CLASS_NAMES`. The workflow also reads the `original_label` property for provenance; supply it on reference features. The example class codes are 0 non-shade coffee, 1 shade coffee, 2 forest, 4 open, and 5 urban.
+Urban is the control that makes the size argument work: it has the smallest
+plots of any class and maps best of any class under transfer. Small alone is
+survivable. Small *and* spectrally similar to its surroundings is not.
 
-The script tags each source with `poly_source`, merges sources in configuration order, and assigns sequential `unique_id` values. Changing source order or asset contents can change IDs; check them before reusing existing train/test splits. Polygon overlaps are not automatically resolved.
+## Method notes that matter
 
-Optional functions in the local configuration can customize preparation:
+- **Polygon level, not pixel level.** Pixels are voted to a polygon label
+  before scoring, because a polygon is the unit a map user acts on.
+- **Training pixels capped at 50 per polygon, test polygons uncapped.** The
+  per-polygon sample depends on the seed and the polygon alone, never on
+  which polygons were requested, so every design sees identical pixels for
+  any polygon they share.
+- **Training sets nest by construction.** Pooled is exactly the union of the
+  local and outside-cluster sets, so each contrast isolates one variable.
+- **Report the regional spread, not the seed interval.** Region to region SD
+  is 0.043 for polygon macro F1 against 0.005 across seeds. n is 4.
+- **`cf_f1`, `sc_nsc_f1` and `nsc_vs_open_f1` are restricted metrics.** They
+  are scored only on polygons whose truth is one of the two classes named, so
+  they exclude false positives arriving from the other three. Report them
+  beside the one-vs-rest F1 scores, never instead of them.
+- **Coordinates.** Imagery is processed and sampled on a 10 m grid in
+  EPSG:3116. Polygon coordinates and all distances use the `easting` and
+  `northing` columns. Scale distortion across the study area is under 0.15%,
+  which is 0.3 m on the 200 m grouping threshold.
 
-- `prepare_source(collection, source)` returns an Earth Engine FeatureCollection before merging.
-- `prepare_annual_frame(df)` returns a pandas DataFrame before the annual table is saved.
+## Known limitations
 
-Neither hook is required. Without hooks, source labels are used as supplied. Personal correction rules are not included in this repository.
+- Four regions. Every regional claim rests on n = 4.
+- Magdalena carries about 8 coffee test polygons per split, as few as 5. It
+  is excluded from per-region claims and the exclusion is stated wherever it
+  applies.
+- Sun coffee does not work as a standalone class, 0.34 under the grouped
+  split. It is reported at that value rather than merged away.
+- The scale mechanism is a proposed explanation. The plot-size measurement
+  supports it; a resolution degradation experiment would test it directly and
+  has not been run.
+- Features are 15 hand-selected annual Sentinel-2 and terrain variables.
+  Seasonal composites and Sentinel-1 were tested separately and did not help.
 
-## Run
+## Outputs
 
-Keep the local configuration beside the scripts, then run:
+Everything lands under `ANALYSIS_DIR`, one folder per script plus
+`figures/`. Tables are CSV and carry the numbers behind every claim above, so
+any figure traces back to the table that produced it. `7_figures.py` also
+writes `captions_draft.txt`, with the numbers read from the tables rather
+than typed, so a caption cannot drift out of step with its figure.
 
-```bash
-python 1_gee.py
-python 2_clean_define_annual.py
-```
+## Data
 
-For notebook use, keep the configuration in the notebook's working directory. Relative output paths resolve from the working directory.
-
-Script 1 replaces the configured extraction output on rerun and writes a JSON record of skipped polygons. Review its completeness and missing-data reports before modeling. Script 2 leaves the extraction file untouched and replaces the configured annual output.
-
-## Feature definitions
-
-The current extraction uses the date settings retained from the research script: start `2020-01-01`, end `2020-12-30` (exclusive). This does not include the final two days of 2020. Those processing settings and cloud thresholds remain in Script 1.
-
-Annual and quarterly spectral bands are temporal medians after cloud/shadow masking. Indices and spatial textures are derived from those medians. Quarters are JFM, AMJ, JAS, and OND; no solar-zenith-angle filtering or normalization is applied. Topography and canopy height are included once, without seasonal duplication. These ancillary products are not necessarily contemporaneous with the 2020 spectral imagery.
-
-Missing values are retained in the saved tables. Script 2 selects annual/static columns; it does not perform feature selection, row filtering, or coordinate reprojection on existing downloads. Coordinates and provenance columns must be excluded from predictor lists later.
-
-## Validation status
-
-Python syntax and configuration behavior have been checked. Full Earth Engine extraction has not been rerun after cleanup and CRS standardization. The repository is a working research pipeline, not a fully validated software release.
+The Sentinel-2 pixel table and the field reference polygons are not in this
+repository. Reference polygon locations are field-collected and may need
+aggregation before release.

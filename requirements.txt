@@ -3,3 +3,6 @@ numpy
 pandas
 geopandas
 pyarrow
+scikit-learn
+scipy
+matplotlib
