@@ -125,7 +125,7 @@ survivable. Small *and* spectrally similar to its surroundings is not.
 
 Everything lands under `ANALYSIS_DIR`, one folder per script plus
 `figures/`. Tables are CSV and carry the numbers behind every claim above, so
-any figure traces back to the table that produced it. `7_figures.py` also
+any figure traces back to the table that produced it. `9_figures.py` also
 writes `captions_draft.txt`, with the numbers read from the tables rather
 than typed, so a caption cannot drift out of step with its figure.
 

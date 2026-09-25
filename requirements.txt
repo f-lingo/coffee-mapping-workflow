@@ -1,8 +1,10 @@
-earthengine-api
-numpy
-pandas
-geopandas
-pyarrow
-scikit-learn
-scipy
-matplotlib
+# Pinned for reproducibility. Random forest results can shift between
+# scikit-learn releases, so keep these at the versions the results came from.
+earthengine-api==1.7.45
+numpy==2.4.6
+pandas==3.0.6
+geopandas==1.1.4
+pyarrow==25.0.1
+scikit-learn==1.9.1
+scipy==1.17.1
+matplotlib==3.11.2
