@@ -30,7 +30,7 @@ the pooled split held out elsewhere. It is fitted once and scored twice.
 
 WHAT THIS WRITES, AND WHO READS IT
     splits/S_*_splits.json          scripts 6, 7 and 8 verify against this
-    P_*_polygon_predictions.csv     script 5 reads this and fits nothing
+    P_*_polygon_predictions.csv     script 7 reads this and fits nothing
     T*_*.csv                        the tables behind figure F1
 
 Run time about 15 minutes at 130 forest fits.
@@ -60,7 +60,7 @@ SAVE_PREDICTIONS = True
 DESIGN_ORDER = ['pooled', 'local', 'loro_out', 'loro_all']
 t0 = time.time()
 
-banner('SCRIPT 3. WHICH REFERENCE POLYGONS HELP')
+banner('SCRIPT 5. WHICH REFERENCE POLYGONS HELP')
 print(f'  {len(cc.FEATURE_COLUMNS)} features, {len(SEEDS)} seeds, '
       f'{cc.FINAL_TREES} trees, polygon vote {POLY_VOTE}')
 _n = len(SEEDS) * (1 + (2 * cc.N_REGIONS if RUN_LOCAL else 0))

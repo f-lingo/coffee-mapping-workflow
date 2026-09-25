@@ -65,7 +65,7 @@ RUN_TASK1 = RUN_TASK2 = RUN_TASK3 = True
 CURVE_SEEDS = SEEDS[:N_SEEDS]
 t0 = time.time()
 
-banner('SCRIPT 6. IS SUN COFFEE FIXABLE')
+banner('SCRIPT 8. IS SUN COFFEE FIXABLE')
 _n2 = len(CURVE_FRACTIONS) * len(CURVE_CLASSES) * len(CURVE_SEEDS) if RUN_TASK2 else 0
 _n3 = 4 * len(CURVE_SEEDS) if RUN_TASK3 else 0
 print(f'  {len(CURVE_SEEDS)} seeds, {_n2 + _n3} forest fits')

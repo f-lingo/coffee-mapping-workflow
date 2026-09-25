@@ -30,7 +30,7 @@ the old first step.
 
 WHAT THIS WRITES
     T8_*_sweep.csv                         the curve, figure F2 and F3
-    P_*_predictions_by_buffer.csv          script 5 cuts this by distance
+    P_*_predictions_by_buffer.csv          script 7 cuts this by distance
     T9_*_near_pairs.csv, T9b_*_marginal.csv, T10_*_grouped.csv
 
 Run time about 45 minutes.
@@ -60,7 +60,7 @@ SAVE_PREDICTIONS = True
 SWEEP_SEEDS = SEEDS[:N_SWEEP_SEEDS]
 t0 = time.time()
 
-banner('SCRIPT 4. HOW FAR FROM A TRAINING POLYGON DOES IT STILL WORK')
+banner('SCRIPT 6. HOW FAR FROM A TRAINING POLYGON DOES IT STILL WORK')
 _arms = 2 if RUN_RANDOM_ARM else 1
 _nf = len(SWEEP_SEEDS) * cc.N_REGIONS * ((len(BUFFERS_KM) - 1) * _arms + 1)
 _ng = len(SWEEP_SEEDS) * cc.N_REGIONS if DEDUP_M is not None else 0

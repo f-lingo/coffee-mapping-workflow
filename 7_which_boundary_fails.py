@@ -1,7 +1,7 @@
 """QUESTION 3a. Which boundary fails, in which direction, and does distance
 matter to it?
 
-FITS NOTHING. Reads the per-polygon predictions scripts 3 and 4 already
+FITS NOTHING. Reads the per-polygon predictions scripts 5 and 6 already
 saved, so it runs in seconds and is safe to rerun while drafting.
 
 The macro F1 averages five classes and hides the fact that two of them fail
@@ -43,7 +43,7 @@ HAS_LOCAL = {'pooled': True, 'local': True, 'loro_out': False,
              'loro_all': False, 'loro_full': False}
 SAVE = True
 
-banner('SCRIPT 5. WHICH BOUNDARY FAILS')
+banner('SCRIPT 7. WHICH BOUNDARY FAILS')
 
 pred_path = cc.out_dir(TAG) / f'P_{TAG}_polygon_predictions.csv'
 if not pred_path.exists():

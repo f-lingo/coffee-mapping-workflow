@@ -510,8 +510,9 @@ def captions():
             f'moves from {B["pct_shade_lost"].iloc[0]:.1f} to '
             f'{B["pct_shade_lost"].iloc[-1]:.1f} percent, while sun coffee '
             f'called Open moves from {B["pct_nsc_lost_to_open"].iloc[0]:.1f} '
-            f'to {B["pct_nsc_lost_to_open"].iloc[-1]:.1f} percent. One '
-            'boundary depends on distance and the other does not. The x axis '
+            f'to {B["pct_nsc_lost_to_open"].iloc[-1]:.1f} percent. Sun coffee called Open depends much less '
+            'on distance than shade coffee called forest, although the '
+            'distance effect varies across buffers. The x axis '
             'is ordinal, not linear.')
     except Exception:
         pass

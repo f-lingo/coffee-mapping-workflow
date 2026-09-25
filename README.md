@@ -62,7 +62,8 @@ experiment rather than with your machine.
 **Q1. Only nearby polygons help.** 173 local training polygons beat 692
 distant ones. Swapping 173 nearby for 174 distant at a fixed total costs
 0.124 macro F1 and loses in 37 of 40 tests. Adding 174 *more* distant
-polygons on top changed nothing, +0.004 with a 95% CI of −0.011 to +0.019.
+polygons on top produced little average improvement: +0.002 macro F1,
+with better performance in 21 of 40 seed–region comparisons.
 
 **Q2. The usual accuracy number is about 0.10 too high.** Shade against sun
 coffee scores 0.709 polygon F1, not the 0.805 a random holdout reports. Two
@@ -73,14 +74,20 @@ reference polygons sitting in tight clumps, median nearest neighbour 208 m.
 **Q3. Two failures, two causes.**
 
 - *Shade coffee against forest is a distance problem.* Shade coffee called
-  forest rises from 10.7% to 26.4% as training data is pushed away, and never
-  plateaus out to 50 km. Closer reference data fixes it. The direction of the
+  forest rises from 10.9% to 25.1% as training data is pushed away. Rates of
+  23.5% at 5 km, 25.6% at 10 km and 25.1% at 50 km are consistent with a
+  plateau beyond about 5 km. Nearby reference data reduces this error. The direction of the
   error flips between regions, so no single global correction will.
 - *Sun coffee against bare ground is a size problem.* Sun coffee plots have a
   median area of 0.30 ha, so at 10 m only about 40% of their pixels are
   unmixed. The pair is separable at 0.82 when it is the only decision being
-  made, and falls to 0.55 inside the five-class problem. Distance does not
-  affect it. More reference data barely helps. Finer pixels would.
+  made, and falls to 0.55 inside the five-class problem. It depends much less
+  on distance: sun coffee called Open rises from 25.0% to 27.1%, although
+  the distance effect reaches 4–6 percentage points at some buffers.
+  More reference data improves F1 from 0.37 at 99 polygons to 0.47 at 121
+  and 0.48 at 142; gains slow after about 120 polygons. The final slope is
+  0.009 F1 per 10 polygons, compared with 0.004 for shade coffee. Finer
+  pixels remain a proposed improvement, not a tested solution.
 
 Urban is the control that makes the size argument work: it has the smallest
 plots of any class and maps best of any class under transfer. Small alone is
@@ -125,7 +132,7 @@ survivable. Small *and* spectrally similar to its surroundings is not.
 
 Everything lands under `ANALYSIS_DIR`, one folder per script plus
 `figures/`. Tables are CSV and carry the numbers behind every claim above, so
-any figure traces back to the table that produced it. `7_figures.py` also
+any figure traces back to the table that produced it. `9_figures.py` also
 writes `captions_draft.txt`, with the numbers read from the tables rather
 than typed, so a caption cannot drift out of step with its figure.
 
